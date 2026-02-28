@@ -54,7 +54,7 @@ class AdaptiveLearningSystem:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model_name = "deepseek-chat" 
         
-        exa_api_key = os.getenv("EXA_API_KEY", "cdf65145-2fe7-4199-8a21-a94594ea0c64") 
+        exa_api_key = os.getenv("EXA_API_KEY", "input your key here") 
         try:
             self.exa_client = Exa(exa_api_key)
         except Exception as e:
@@ -270,7 +270,7 @@ class AdaptiveLearningSystem:
         except Exception as e:
             return None
 
-API_KEY = os.getenv("DEEPSEEK_API_KEY", "sk-b4bab8188613494fa81c08f043b01a9d")
+API_KEY = os.getenv("DEEPSEEK_API_KEY", "input your key here")
 BASE_URL = BASE_URL = "https://api.deepseek.com/v1"
 
 global_system = AdaptiveLearningSystem(api_key=API_KEY, base_url=BASE_URL)
