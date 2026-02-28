@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pymysql
+bcrypt
+openai
+exa_py
+pydantic

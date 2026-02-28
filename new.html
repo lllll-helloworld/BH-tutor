@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tutor · Adaptive Learning System</title>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            startup: { typeset: false }
+        };
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .tag, .option-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .tag:hover, .option-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        .tag-active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .topic-tag { transition: all 0.2s; }
+        .topic-tag-active { background-color: #10b981; color: white; border-color: #10b981; }
+        .bounce-in { animation: bounceIn 0.5s ease-out forwards; opacity: 0; }
+        @keyframes bounceIn {
+            0% { transform: translateY(50px); opacity: 0; }
+            60% { transform: translateY(-15px); opacity: 1; }
+            80% { transform: translateY(5px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .fade-in { animation: fadeIn 0.8s ease-out forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mermaid svg { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <div id="welcome-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 transition-all duration-700 ease-out">
+        <div class="text-7xl mb-6 bounce-in" style="animation-delay: 0.1s;">🤖</div>
+        <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-center fade-in" style="animation-delay: 0.3s;">AI Adaptive Tutor</h1>
+        <p class="text-zinc-400 text-lg md:text-xl mb-12 max-w-lg text-center leading-relaxed fade-in" style="animation-delay: 0.5s;">
+            Dynamically deduce learning situations, say goodbye to endless practice. Precisely locate knowledge gaps and generate personalized remediation paths.
+        </p>
+        <button onclick="enterApp()" class="px-12 py-4 bg-white text-zinc-950 hover:bg-zinc-200 rounded-full font-bold text-xl transition-all hover:scale-105 active:scale-95 fade-in" style="animation-delay: 0.7s;">
+            Start Learning Journey
+        </button>
+    </div>
+
+    <div id="main-app" class="hidden opacity-0 translate-y-12 flex-col w-full flex-1 transition-all duration-1000 ease-out">
+        <div class="max-w-4xl mx-auto px-8 pt-6 w-full flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-2xl flex items-center justify-center text-xl">🤖</div>
+                <h1 id="main-title" class="text-2xl font-semibold tracking-tight">AI Adaptive Tutor</h1>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-lg font-medium bg-zinc-900 px-4 py-2 rounded-2xl border border-zinc-800 hidden" id="score-display">
+                    🏆 <span id="user-name-display" class="mr-2 text-zinc-400"></span>Points: <span id="current-score" class="text-blue-400 font-bold text-xl">0</span>
+                </div>
+                <button id="stats-btn" onclick="showStatsModal()" class="hidden px-6 py-2 bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 rounded-2xl font-semibold transition-colors">
+                    Wrong Question Analysis
+                </button>
+                <button id="auth-btn" onclick="showAuthModal()" class="px-6 py-2 bg-white text-zinc-950 hover:bg-white/90 rounded-2xl font-semibold transition-colors">
+                    Login / Register
+                </button>
+            </div>
+        </div>
+
+        <div class="max-w-4xl mx-auto p-8 w-full flex-1">
+            <div class="flex items-center gap-3 mb-8">
+                <div onclick="goToStep(1)" id="step1-dot" class="cursor-pointer w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold shadow-[0_0_15px_rgba(59,130,246,0.5)]">1</div>
+                <div class="h-px flex-1 bg-zinc-700"></div>
+                <div id="step2-dot" class="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold transition-colors duration-300">2</div>
+            </div>
+
+            <div id="step1">
+                <div class="mb-10">
+                    <h1 class="text-4xl font-semibold tracking-tight mb-2">Choose Subject</h1>
+                    <p class="text-zinc-400">Select a preset subject, or enter any field you want to test below</p>
+                </div>
+                
+                <div id="tags-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8"></div>
+                
+                <div class="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-3xl px-6 py-2 focus-within:border-blue-500 mb-8">
+                    <span class="text-2xl">✨</span>
+                    <input type="text" id="custom-subject-input" placeholder="Or enter any subject you want to test (e.g., Quantum Mechanics...)" 
+                           class="w-full bg-transparent border-none text-lg py-4 text-white focus:outline-none"
+                           oninput="handleCustomSubjectInput(this.value)">
+                </div>
+
+                <div id="topics-section" class="hidden fade-in bg-zinc-900/50 border border-zinc-800 p-6 rounded-3xl">
+                    <h2 class="text-xl font-medium mb-4 flex items-center gap-2">
+                        <span>🎯</span> Specify Knowledge Point <span class="text-zinc-500 text-sm font-normal">(optional, default auto-select)</span>
+                    </h2>
+                    <div id="topics-container" class="flex flex-wrap gap-3 mb-4"></div>
+                    <div class="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-2 focus-within:border-emerald-500">
+                        <span class="text-zinc-500">✏️</span>
+                        <input type="text" id="custom-topic-input" placeholder="Enter your own knowledge point..." class="w-full bg-transparent border-none py-2 text-white focus:outline-none text-sm" oninput="handleCustomTopicInput(this.value)">
+                    </div>
+                </div>
+
+                <div id="difficulty-section" class="hidden fade-in bg-zinc-900/50 border border-zinc-800 p-6 rounded-3xl mt-8 transition-all duration-300">
+                    <h2 class="text-xl font-medium mb-4 flex items-center gap-2">
+                        <span>🌡️</span> Assess Current Level <span class="text-rose-400 text-sm font-normal">(Required for first practice, determines initial question difficulty)</span>
+                    </h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="difficulty-container">
+                        <button class="diff-btn px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-sm font-medium transition-all" data-score="100">
+                            <div class="text-xl mb-1">🌱</div>Absolute Beginner
+                        </button>
+                        <button class="diff-btn px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-sm font-medium transition-all" data-score="300">
+                            <div class="text-xl mb-1">📖</div>Just Started
+                        </button>
+                        <button class="diff-btn px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-sm font-medium transition-all" data-score="600">
+                            <div class="text-xl mb-1">🚀</div>Intermediate
+                        </button>
+                        <button class="diff-btn px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-sm font-medium transition-all" data-score="800">
+                            <div class="text-xl mb-1">👑</div>Challenge Limit
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-12 flex flex-col items-end gap-4">
+                    <div id="selection-summary" class="hidden bg-zinc-900 border border-zinc-700 px-6 py-3 rounded-2xl text-zinc-300 font-medium">
+                        💡 Selected: <span id="summary-subject" class="text-blue-400 ml-1"></span>
+                        <span id="summary-topic-wrapper" class="hidden ml-2">❯ <span id="summary-topic" class="text-emerald-400 ml-2"></span></span>
+                    </div>
+                    <button onclick="startPractice()" id="next-btn" class="px-10 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold text-lg disabled:opacity-50" disabled>Start Assessment →</button>
+                </div>
+            </div>
+
+            <div id="step2" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-semibold tracking-tight flex items-center" id="practice-subject-title">Assessing</h1>
+                    <button onclick="goToStep(1)" class="text-zinc-400 hover:text-white flex items-center gap-2 text-sm">← End Practice</button>
+                </div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 relative min-h-[400px] flex flex-col justify-center">
+                    
+                    <div id="loading-state" class="absolute inset-0 z-10 bg-zinc-900 flex flex-col items-center justify-center rounded-3xl hidden">
+                        <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                        <p id="loading-text" class="text-zinc-400 mt-4 transition-opacity duration-300">Waking up AI Tutor...</p>
+                    </div>
+
+                    <div id="question-state" class="hidden flex-1">
+                        <div class="flex gap-3 mb-5">
+                            <span id="q-category" class="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-sm font-medium">Knowledge Point</span>
+                            <span id="q-difficulty" class="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-sm font-medium">Difficulty: 2</span>
+                        </div>
+                        
+                        <div id="q-content" class="prose prose-invert max-w-none mb-8 text-xl leading-relaxed"></div>
+                        
+                        <div id="q-options" class="space-y-3"></div>
+                    </div>
+                    <div id="feedback-state" class="hidden mt-8">
+                        <div id="feedback-box"></div>
+                        <div class="text-right">
+                            <button onclick="fetchNewQuestion(false)" class="px-8 py-3 bg-white text-zinc-950 rounded-2xl font-semibold">Next Question →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onclick="closeModal('auth-modal')">
+        <div class="bg-zinc-900 w-full max-w-sm rounded-3xl p-8" onclick="event.stopPropagation()">
+            <div class="flex gap-4 border-b border-zinc-800 pb-4 mb-6">
+                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 text-center font-semibold text-blue-400">Login</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 text-center font-semibold text-zinc-500">Register</button>
+            </div>
+            
+            <input type="text" id="auth-username" placeholder="Username" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4 text-white focus:outline-none focus:border-blue-500">
+            <input type="password" id="auth-password" placeholder="Password" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-6 text-white focus:outline-none focus:border-blue-500">
+            
+            <button onclick="submitAuth()" id="auth-submit-btn" class="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-colors">Login</button>
+            <p id="auth-msg" class="text-rose-400 text-sm mt-4 text-center"></p>
+        </div>
+    </div>
+
+    <div id="stats-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onclick="closeModal('stats-modal')">
+        <div class="bg-zinc-900 w-full max-w-4xl max-h-[80vh] rounded-3xl flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
+                <h2 class="text-2xl font-semibold">📈 My Learning Analysis</h2>
+                <button onclick="closeModal('stats-modal')" class="text-zinc-400 hover:text-white text-xl">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 flex flex-col gap-8">
+                <div>
+                    <h3 class="text-lg font-medium text-blue-400 mb-4 flex items-center gap-2"><span>🎯</span> Weak Point Distribution</h3>
+                    <div id="weakness-container" class="flex flex-wrap gap-3"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-rose-400 mb-4 flex items-center gap-2"><span>📓</span> Wrong Question Notebook</h3>
+                    <div id="wrong-questions-container" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onclick="closeModal('review-modal')">
+        <div class="bg-zinc-900 w-full max-w-5xl max-h-[90vh] rounded-3xl flex flex-col overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.2)]" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-gradient-to-r from-blue-900/40 to-purple-900/40">
+                <h2 class="text-2xl font-bold flex items-center gap-2"><span>🔮</span> Phase Knowledge Review (Consecutively solved <span id="rev-count" class="text-blue-400">10</span> questions)</h2>
+                <button onclick="closeModal('review-modal')" class="text-zinc-400 hover:text-white text-2xl">✕</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="flex flex-col gap-4">
+                    <div class="bg-zinc-950 p-5 rounded-2xl border border-rose-500/30">
+                        <h3 class="text-rose-400 font-semibold mb-2">🎯 Diagnosis Gap</h3>
+                        <p id="rev-gap" class="text-zinc-200 text-sm leading-relaxed"></p>
+                    </div>
+                    
+                    <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 flex-1 flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-blue-400 font-semibold">🕸️ Knowledge Map</h3>
+                            <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg p-1 shadow-lg">
+                                <button onclick="zoomMermaid(0.2)" title="Zoom in" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors">➕</button>
+                                <button onclick="zoomMermaid(-0.2)" title="Zoom out" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors">➖</button>
+                                <button onclick="zoomMermaid(0, true)" title="Reset" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors">🔄</button>
+                                <div class="w-px h-4 bg-zinc-700 mx-1"></div>
+                                <button onclick="downloadMermaid()" title="Save as high-res image" class="px-3 h-8 flex items-center justify-center text-emerald-400 hover:text-white hover:bg-emerald-600/30 rounded-md transition-colors font-medium text-sm gap-1">⬇️ Save</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-auto bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50 relative">
+                            <div id="mermaid-container" class="transition-transform duration-200 flex items-center justify-center min-h-[200px]" style="transform: scale(1); transform-origin: top left;">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div id="rev-path-container" class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.protocol + '//' + window.location.host;
+        
+        let currentUserId = null;
+        let currentUserName = null;
+        let selectedSubjectId = null;
+        let selectedTopic = null; 
+        let selectedInitialScore = null;
+        let isAnswering = false;
+        let isFetching = false; 
+        let loadingInterval; 
+        let topicSearchTimeout;
+        
+        let userTopicScores = {};
+
+        const subjects = [
+            { id: "High School Physics", emoji: "⚛️", name: "High School Physics", topics: ["Newton's Laws", "Conservation of Momentum", "Electromagnetic Induction"] },
+            { id: "Python Programming", emoji: "🐍", name: "Python Programming", topics: ["Basic Syntax", "Object-Oriented", "Concurrent Programming"] }
+        ];
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.toString().replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
+            );
+        }
+
+        function renderMathJax() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().catch((err) => console.log('MathJax rendering failed: ', err.message));
+            }
+        }
+
+        function enterApp() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden', 'opacity-0', 'translate-y-12');
+            document.getElementById('main-app').classList.add('flex', 'opacity-100', 'translate-y-0');
+            renderSubjects();
+            checkDifficultyRequirement();
+        }
+
+        let authMode = 'login';
+        function showAuthModal() {
+            if (currentUserId) { 
+                currentUserId = null;
+                currentUserName = null;
+                userTopicScores = {}; 
+                updateHeaderAuthStatus();
+                alert("Logged out");
+                goToStep(1);
+                return;
+            }
+            document.getElementById('auth-modal').classList.remove('hidden');
+            document.getElementById('auth-msg').textContent = "";
+        }
+
+        function switchAuthTab(mode) {
+            authMode = mode;
+            document.getElementById('auth-msg').textContent = "";
+            if (mode === 'login') {
+                document.getElementById('tab-login').className = "flex-1 text-center font-semibold text-blue-400";
+                document.getElementById('tab-register').className = "flex-1 text-center font-semibold text-zinc-500";
+                document.getElementById('auth-submit-btn').textContent = "Login";
+            } else {
+                document.getElementById('tab-login').className = "flex-1 text-center font-semibold text-zinc-500";
+                document.getElementById('tab-register').className = "flex-1 text-center font-semibold text-blue-400";
+                document.getElementById('auth-submit-btn').textContent = "Register";
+            }
+        }
+
+        async function loadUserStats() {
+            if (!currentUserId) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/stats?user_id=${currentUserId}`);
+                const result = await res.json();
+                if (result.status === 'success') {
+                    userTopicScores = result.data.topic_scores || {};
+                }
+            } catch(e) {
+                console.error("Failed to load stats:", e);
+            }
+        }
+
+        async function submitAuth() {
+            const user = document.getElementById('auth-username').value.trim();
+            const pass = document.getElementById('auth-password').value.trim();
+            const msgBox = document.getElementById('auth-msg');
+
+            if(!user || !pass) { msgBox.textContent = "Please fill in all fields"; return; }
+
+            const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
+            try {
+                const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const result = await res.json();
+
+                if(result.status === "success") {
+                    if(authMode === 'login') {
+                        currentUserId = result.data.user_id;
+                        currentUserName = result.data.username;
+                        document.getElementById('current-score').textContent = result.data.score;
+                        updateHeaderAuthStatus();
+                        closeModal('auth-modal');
+                        
+                        await loadUserStats();
+                        checkDifficultyRequirement();
+                    } else {
+                        msgBox.className = "text-emerald-400 text-sm mt-4 text-center";
+                        msgBox.textContent = "Registration successful, please switch to login!";
+                        switchAuthTab('login');
+                    }
+                } else {
+                    msgBox.className = "text-rose-400 text-sm mt-4 text-center";
+                    msgBox.textContent = result.message;
+                }
+            } catch(e) {
+                msgBox.textContent = "Network error, please ensure backend is running";
+            }
+        }
+
+        function updateHeaderAuthStatus() {
+            const authBtn = document.getElementById('auth-btn');
+            const statsBtn = document.getElementById('stats-btn');
+            const nameDisplay = document.getElementById('user-name-display');
+
+            if (currentUserId) {
+                authBtn.textContent = "Logout";
+                authBtn.classList.replace('bg-white', 'bg-rose-500');
+                authBtn.classList.replace('text-zinc-950', 'text-white');
+                statsBtn.classList.remove('hidden');
+                nameDisplay.textContent = escapeHTML(currentUserName) + "'s ";
+            } else {
+                authBtn.textContent = "Login / Register";
+                authBtn.classList.replace('bg-rose-500', 'bg-white');
+                authBtn.classList.replace('text-white', 'text-zinc-950');
+                statsBtn.classList.add('hidden');
+                nameDisplay.textContent = "";
+                document.getElementById('score-display').classList.add('hidden');
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        async function showStatsModal() {
+            if(!currentUserId) return;
+            document.getElementById('stats-modal').classList.remove('hidden');
+            const weakBox = document.getElementById('weakness-container');
+            const wrongBox = document.getElementById('wrong-questions-container');
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/stats?user_id=${currentUserId}`);
+                const result = await res.json();
+                if(result.status === 'success') {
+                    const data = result.data;
+                    document.getElementById('current-score').textContent = `Total Avg: ${data.score}`;
+                    
+                    userTopicScores = data.topic_scores || {}; 
+                    
+                    if (Object.keys(data.topic_scores).length === 0) {
+                        weakBox.innerHTML = '<span class="text-zinc-500">No data</span>';
+                    } else {
+                        weakBox.innerHTML = Object.entries(data.topic_scores).map(([topic, score]) => {
+                            const errorCount = data.category_counts[topic] || 0;
+                            const colorClass = score < 400 ? 'border-rose-500/50 text-rose-300 bg-rose-900/20' : 
+                                             score < 600 ? 'border-amber-500/50 text-amber-300 bg-amber-900/20' : 
+                                             'border-blue-500/50 text-blue-300 bg-blue-900/20';
+                            
+                            return `<div class="px-4 py-2 border rounded-xl text-sm ${colorClass}">
+                                      <span class="font-bold mr-2">${escapeHTML(topic)}</span> 
+                                      <span class="opacity-80">${score} points</span>
+                                      ${errorCount > 0 ? `<span class="ml-2 bg-rose-500/30 px-1.5 py-0.5 rounded text-xs">Wrong ${errorCount} times</span>` : ''}
+                                    </div>`;
+                        }).join('');
+                    }
+
+                    if (data.wrong_questions && data.wrong_questions.length > 0) {
+                        wrongBox.innerHTML = data.wrong_questions.map((q) => `
+                            <div class="bg-zinc-950 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-xs font-bold px-2 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-md">Topic: ${escapeHTML(q.category)}</span>
+                                </div>
+                                <div class="text-zinc-300 text-sm mb-4 prose prose-invert">${marked.parse(q.question_content || "")}</div>
+                                <div class="flex flex-wrap gap-4 text-sm mb-4 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800/50">
+                                    <span class="text-rose-400 font-medium">❌ Your answer: ${escapeHTML(q.student_answer)}</span>
+                                    <span class="text-emerald-400 font-medium">✅ Correct answer: ${escapeHTML(q.correct_answer)}</span>
+                                </div>
+                                <div class="bg-blue-900/10 p-4 rounded-lg border border-blue-500/20 text-sm">
+                                    <div class="text-rose-300 font-medium mb-1">🔍 Error Analysis:</div>
+                                    <div class="text-zinc-400 mb-3 leading-relaxed">${escapeHTML(q.root_cause || "No record")}</div>
+                                    <div class="text-blue-300 font-medium mb-1">💡 Improvement Suggestions:</div>
+                                    <div class="text-zinc-400 leading-relaxed">${escapeHTML(q.improvement || "No record")}</div>
+                                </div>
+                            </div>
+                        `).join('');
+                        renderMathJax();
+                    } else {
+                        wrongBox.innerHTML = '<span class="text-zinc-500 p-4 bg-zinc-900 rounded-xl border border-zinc-800">🎉 Great, no wrong question records!</span>';
+                    }
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('bg-blue-600', 'border-blue-500'));
+                btn.classList.add('bg-blue-600', 'border-blue-500');
+                selectedInitialScore = parseInt(btn.getAttribute('data-score'));
+                checkDifficultyRequirement(); 
+            }
+        });
+
+        function checkDifficultyRequirement() {
+            if (!selectedSubjectId) {
+                document.getElementById('difficulty-section').classList.add('hidden');
+                document.getElementById('next-btn').disabled = true;
+                return;
+            }
+
+            let requireDifficulty = true;
+
+            if (currentUserId) {
+                if (selectedTopic && userTopicScores[selectedTopic] !== undefined) {
+                    requireDifficulty = false; 
+                } else if (!selectedTopic && Object.keys(userTopicScores).length > 0) {
+                    requireDifficulty = false; 
+                }
+            }
+
+            const diffSection = document.getElementById('difficulty-section');
+            if (requireDifficulty) {
+                diffSection.classList.remove('hidden');
+                document.getElementById('next-btn').disabled = (selectedInitialScore === null);
+            } else {
+                diffSection.classList.add('hidden');
+                selectedInitialScore = null; 
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('bg-blue-600', 'border-blue-500'));
+                document.getElementById('next-btn').disabled = false;
+            }
+        }
+
+        function renderSubjects() {
+            const container = document.getElementById('tags-container');
+            container.innerHTML = '';
+            subjects.forEach((sub, index) => {
+                const btn = document.createElement('button');
+                btn.className = `tag flex items-center gap-3 px-6 py-5 bg-zinc-900 border border-zinc-800 rounded-3xl text-left w-full text-lg font-medium opacity-0`;
+                btn.innerHTML = `<span class="text-3xl">${sub.emoji}</span><span>${escapeHTML(sub.name)}</span>`;
+                btn.onclick = () => {
+                    document.getElementById('custom-subject-input').value = '';
+                    document.querySelectorAll('.tag').forEach(b => b.classList.remove('tag-active'));
+                    selectedSubjectId = sub.id;
+                    btn.classList.add('tag-active');
+                    
+                    renderTopics(sub.topics);
+                    checkDifficultyRequirement(); 
+                    updateSummaryDisplay(); 
+                };
+                container.appendChild(btn);
+                setTimeout(() => { btn.classList.add('bounce-in', 'opacity-100'); }, index * 100);
+            });
+        }
+
+        function renderTopics(topics) {
+            selectedTopic = null; 
+            document.getElementById('custom-topic-input').value = '';
+            const section = document.getElementById('topics-section');
+            const container = document.getElementById('topics-container');
+            container.innerHTML = '';
+            section.classList.remove('hidden');
+            if (topics) {
+                topics.forEach(topic => {
+                    const btn = document.createElement('button');
+                    btn.className = "topic-tag px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-2xl text-sm";
+                    btn.textContent = topic;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.topic-tag').forEach(b => b.classList.remove('topic-tag-active'));
+                        selectedTopic = topic;
+                        btn.classList.add('topic-tag-active');
+                        checkDifficultyRequirement(); 
+                        updateSummaryDisplay();
+                    };
+                    container.appendChild(btn);
+                });
+            }
+        }
+
+        function handleCustomSubjectInput(val) {
+            selectedSubjectId = val.trim() || null;
+            document.querySelectorAll('.tag').forEach(b => b.classList.remove('tag-active'));
+            
+            clearTimeout(topicSearchTimeout);
+
+            const section = document.getElementById('topics-section');
+            const container = document.getElementById('topics-container');
+
+            if(!selectedSubjectId) {
+                section.classList.add('hidden');
+                checkDifficultyRequirement();
+                updateSummaryDisplay();
+                return;
+            }
+
+            section.classList.remove('hidden');
+            container.innerHTML = '<span class="text-zinc-500 text-sm animate-pulse">🔍 Retrieving core knowledge points for this subject via Exa...</span>';
+            checkDifficultyRequirement();
+            updateSummaryDisplay();
+
+            topicSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/topics?subject=${encodeURIComponent(selectedSubjectId)}`);
+                    const result = await res.json();
+                    
+                    if(result.status === 'success' && result.data && result.data.length > 0) {
+                        renderTopics(result.data);
+                    } else {
+                        container.innerHTML = '<span class="text-zinc-500 text-sm">Failed to auto-retrieve knowledge points, please enter manually below👇</span>';
+                    }
+                } catch(e) {
+                    container.innerHTML = '<span class="text-rose-400 text-sm">Retrieval failed, please enter manually below👇</span>';
+                }
+            }, 800); 
+        }
+
+        function handleCustomTopicInput(val) {
+            document.querySelectorAll('.topic-tag').forEach(b => b.classList.remove('topic-tag-active'));
+            selectedTopic = val.trim() || null;
+            checkDifficultyRequirement(); 
+            updateSummaryDisplay();
+        }
+        
+        function updateSummaryDisplay() {
+            const sum = document.getElementById('selection-summary');
+            if (!selectedSubjectId) { sum.classList.add('hidden'); return; }
+            sum.classList.remove('hidden');
+            document.getElementById('summary-subject').innerHTML = `✨ ${escapeHTML(selectedSubjectId)}`;
+            const tw = document.getElementById('summary-topic-wrapper');
+            if (selectedTopic) { tw.classList.remove('hidden'); document.getElementById('summary-topic').textContent = selectedTopic; } 
+            else tw.classList.add('hidden');
+        }
+
+        function goToStep(step) {
+            document.getElementById('step1').classList.toggle('hidden', step !== 1);
+            document.getElementById('step2').classList.toggle('hidden', step !== 2);
+            if(step === 2 && currentUserId) document.getElementById('score-display').classList.remove('hidden');
+            else if(step === 1) document.getElementById('score-display').classList.add('hidden');
+        }
+
+        function startPractice() {
+            if(!currentUserId) {
+                alert("Please login or register first!");
+                showAuthModal();
+                return;
+            }
+            goToStep(2);
+            fetchNewQuestion(true); 
+        }
+
+        async function fetchNewQuestion(isFirstQuestion = false) {
+            if (isFetching) return; 
+            isFetching = true;
+
+            const loadingState = document.getElementById('loading-state');
+            const loadingText = document.getElementById('loading-text');
+            
+            document.getElementById('question-state').classList.add('hidden');
+            document.getElementById('feedback-state').classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            isAnswering = false;
+
+            const loadingMessages = [
+                "🔍 Retrieving latest materials...",
+                "🧠 AI Tutor is reading references...",
+                "✍️ Crafting a question based on your level...",
+                "✨ Almost there, final checks..."
+            ];
+            let msgIndex = 0;
+            loadingText.textContent = loadingMessages[0];
+            loadingText.style.opacity = 1;
+
+            loadingInterval = setInterval(() => {
+                msgIndex = (msgIndex + 1) % loadingMessages.length;
+                loadingText.style.opacity = 0;
+                
+                setTimeout(() => {
+                    loadingText.textContent = loadingMessages[msgIndex];
+                    loadingText.style.opacity = 1;
+                }, 300); 
+            }, 2500); 
+
+            try {
+                let url = `${API_BASE_URL}/api/question?user_id=${currentUserId}&subject=${encodeURIComponent(selectedSubjectId)}`;
+                if (selectedTopic) url += `&topic=${encodeURIComponent(selectedTopic)}`;
+                
+                if (isFirstQuestion && selectedInitialScore !== null) {
+                    url += `&initial_score=${selectedInitialScore}`;
+                }
+
+                const res = await fetch(url);
+                const result = await res.json();
+                
+                if (result.status === "success") {
+                    renderQuestion(result.data);
+                } else { 
+                    alert(result.message); 
+                    goToStep(1); 
+                }
+            } catch (e) { 
+                alert("Network error"); 
+                goToStep(1); 
+            } finally {
+                isFetching = false;
+                clearInterval(loadingInterval);
+            }
+        }
+
+        function renderQuestion(data) {
+            document.getElementById('practice-subject-title').innerHTML = 
+                `✨ ${escapeHTML(selectedSubjectId)} ${selectedTopic ? `(${escapeHTML(selectedTopic)})` : ''} 
+                <span class="text-sm md:text-base text-blue-400 font-bold ml-4 bg-blue-500/10 px-3 py-1 rounded-xl border border-blue-500/30 align-middle">
+                    Question ${data.current_q_num} / 5
+                </span>`;
+
+            document.getElementById('current-score').textContent = `${data.category} (${data.current_score} points)`;
+            document.getElementById('q-category').textContent = `Topic: ${data.category}`;
+            document.getElementById('q-difficulty').textContent = `Difficulty: ${'⭐'.repeat(data.difficulty)}`;
+            document.getElementById('q-content').innerHTML = marked.parse(data.content || "");
+
+            const opts = document.getElementById('q-options');
+            opts.innerHTML = '';
+            for (const [k, v] of Object.entries(data.options)) {
+                const btn = document.createElement('button');
+                btn.className = "option-btn w-full text-left px-6 py-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-2xl text-lg flex gap-4 items-center";
+                btn.innerHTML = `<span class="w-8 h-8 rounded-full bg-zinc-700 flex justify-center items-center text-sm shrink-0">${k}</span> <span class="whitespace-pre-wrap text-left w-full">${marked.parseInline(v || "")}</span>`;
+                btn.onclick = () => submitAnswer(k, btn);
+                opts.appendChild(btn);
+            }
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('question-state').classList.remove('hidden');
+            renderMathJax();
+        }
+
+        async function submitAnswer(ans, btn) {
+            if (isAnswering) return; 
+            isAnswering = true;
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.add('opacity-50', 'cursor-not-allowed'));
+            btn.classList.remove('opacity-50', 'bg-zinc-800/50');
+            btn.classList.add('bg-blue-600', 'border-blue-500');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUserId, answer: ans })
+                });
+                const result = await res.json();
+                if (result.status === "success") showFeedback(result, btn);
+                else { alert(result.message); isAnswering = false; }
+            } catch (e) { alert("Network error"); isAnswering = false; }
+        }
+
+        async function showFeedback(result, btn) {
+            document.getElementById('current-score').textContent = `${result.current_topic} (${result.current_score} points)`;
+            
+            userTopicScores[result.current_topic] = result.current_score;
+            checkDifficultyRequirement();
+
+            const box = document.getElementById('feedback-box');
+            document.getElementById('feedback-state').classList.remove('hidden');
+            
+            const isCorrect = result.is_correct;
+            const icon = isCorrect ? '✅' : '❌';
+            
+            if (isCorrect) {
+                btn.className = `option-btn w-full text-left px-6 py-4 border rounded-2xl text-lg flex gap-4 items-center bg-emerald-600 border-emerald-500`;
+            } else {
+                btn.className = `option-btn w-full text-left px-6 py-4 border rounded-2xl text-lg flex gap-4 items-center bg-rose-600 border-rose-500`;
+            }
+            
+            const boxBg = isCorrect ? 'bg-emerald-500/10' : 'bg-rose-500/10';
+            const boxBorder = isCorrect ? 'border-emerald-500/30' : 'border-rose-500/30';
+            const textColor = isCorrect ? 'text-emerald-100' : 'text-rose-100';
+            const titleColor = isCorrect ? 'text-emerald-400' : 'text-rose-400';
+            
+            box.className = `p-5 rounded-2xl mb-6 border ${boxBg} ${boxBorder} ${textColor}`;
+            box.innerHTML = `
+                <div class="flex items-center gap-2 font-bold ${titleColor} mb-4 text-lg border-b border-white/10 pb-2">
+                    ${icon} ${isCorrect ? 'Correct' : 'Incorrect'} 
+                    <span class="text-sm font-normal ml-auto">${result.streak_msg || ''} Score change: ${result.base_score_change}</span>
+                </div>
+                <div class="grid grid-cols-1 gap-4 text-sm mt-3">
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <span class="text-rose-400 font-bold block mb-1">🔍 Root Cause / Core Point:</span>
+                        <span class="text-zinc-300">${escapeHTML(result.root_cause)}</span>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <span class="text-blue-400 font-bold block mb-1">💡 Improvement Suggestion:</span>
+                        <span class="text-zinc-300">${escapeHTML(result.improvement)}</span>
+                    </div>
+                </div>
+            `;
+            
+            if (result.review_data) {
+                renderReviewModal(result.review_data);
+            }
+            
+            renderMathJax();
+        }
+
+        async function renderReviewModal(data) {
+            document.getElementById('review-modal').classList.remove('hidden');
+            
+            zoomMermaid(0, true); 
+            
+            document.getElementById('rev-count').textContent = data.count || "10";
+            document.getElementById('rev-gap').textContent = data.gap;
+            
+            const mermaidContainer = document.getElementById('mermaid-container');
+            mermaidContainer.innerHTML = '';
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'mermaid';
+            graphDiv.textContent = data.mermaid_graph;
+            mermaidContainer.appendChild(graphDiv);
+            
+            try {
+                await mermaid.run({ nodes: [graphDiv] });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+                mermaidContainer.innerHTML = `<p class="text-zinc-500 text-sm">Failed to generate graph</p>`;
+            }
+            
+            const pathContainer = document.getElementById('rev-path-container');
+            if (data.path_type === "Struggling Student") {
+                pathContainer.innerHTML = `
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-amber-400">💊 Remediation Pack (Struggling Student Path)</h3>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm text-zinc-400 mb-2">🎬 1-Minute Explanation Script:</h4>
+                        <div class="p-4 bg-zinc-900 rounded-xl text-zinc-300 text-sm italic border-l-4 border-amber-500 whitespace-pre-wrap">${escapeHTML(data.content.video_script)}</div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-zinc-400 mb-2">🪜 Laddered Practice:</h4>
+                        <div class="space-y-2">
+                            ${(data.content.practices || []).map((p, i) => `<div class="p-3 bg-zinc-900 rounded-xl text-sm"><span class="text-amber-500 font-bold mr-2">Lv.${i+1}</span>${escapeHTML(p)}</div>`).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (data.path_type === "Average Student") {
+                pathContainer.innerHTML = `
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-emerald-400">⚖️ Consolidation Pack (Average Student Path)</h3>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm text-zinc-400 mb-2">💡 Core Concept Clarification:</h4>
+                        <div class="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl text-emerald-100 text-sm whitespace-pre-wrap leading-relaxed">${escapeHTML(data.content.core_concept_clarification)}</div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-zinc-400 mb-2">🛠️ Problem-Solving Techniques Summary:</h4>
+                        <div class="p-4 bg-zinc-900 rounded-xl text-zinc-300 text-sm leading-relaxed">${escapeHTML(data.content.methodology_summary)}</div>
+                    </div>
+                `;
+            } else {
+                pathContainer.innerHTML = `
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-purple-400">🚀 Advanced Breakthrough Pack (Top Student Path)</h3>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm text-zinc-400 mb-2">🔥 Challenge Question:</h4>
+                        <div class="p-4 bg-purple-900/20 border border-purple-500/30 rounded-xl text-purple-100 text-sm whitespace-pre-wrap leading-relaxed">${escapeHTML(data.content.extension_q)}</div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-zinc-400 mb-2">🌍 Cross-Domain Case:</h4>
+                        <div class="p-4 bg-zinc-900 rounded-xl text-zinc-300 text-sm leading-relaxed">${escapeHTML(data.content.application_case)}</div>
+                    </div>
+                `;
+            }
+            renderMathJax();
+        }
+
+        let currentZoom = 1;
+
+        function zoomMermaid(delta, reset = false) {
+            const container = document.getElementById('mermaid-container');
+            if (reset) {
+                currentZoom = 1;
+            } else {
+                currentZoom += delta;
+                if (currentZoom < 0.3) currentZoom = 0.3; 
+                if (currentZoom > 3) currentZoom = 3;     
+            }
+            container.style.transform = `scale(${currentZoom})`;
+        }
+
+        function downloadMermaid() {
+            const container = document.getElementById('mermaid-container');
+            const svg = container.querySelector('svg');
+            
+            if (!svg) {
+                alert("⚠️ Graph still rendering or generation failed, please try again later!");
+                return;
+            }
+            
+            const clonedSvg = svg.cloneNode(true);
+            
+            if (!clonedSvg.getAttribute('xmlns')) {
+                clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            }
+            
+            clonedSvg.style.backgroundColor = '#18181b'; 
+            clonedSvg.style.padding = '20px';
+            clonedSvg.style.borderRadius = '10px';
+
+            const svgData = new XMLSerializer().serializeToString(clonedSvg);
+            const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `AI_Diagnosis_Map_${new Date().getTime()}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

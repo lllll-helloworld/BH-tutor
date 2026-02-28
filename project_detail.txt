@@ -1,0 +1,85 @@
+Project Overview
+The project is an AI-powered Adaptive Learning System (AI Tutor) designed to dynamically assess a student's knowledge level, generate personalized practice questions, and provide targeted feedback. It utilizes a Large Language Model (LLM) combined with external knowledge retrieval to prevent hallucinations and ensure high-quality educational content.
+
+1. Technology Stack
+Backend Framework: Built with FastAPI and served using Uvicorn.
+
+Database: MySQL, interacted with via the pymysql library.
+
+AI & Integrations: * Uses an OpenAI-compatible client connecting to the "deepseek-chat" model for core text generation and evaluation.
+
+Utilizes the Exa API (exa_py) for real-time web retrieval of background knowledge to ground the generated questions.
+
+Data Validation: Pydantic is used to enforce strict JSON schemas for LLM outputs.
+
+Security: Passwords are hashed and verified using the bcrypt library.
+
+Frontend: A single-page HTML application built with Tailwind CSS for styling. It relies on MathJax for rendering mathematical formulas and Mermaid.js for generating knowledge map graphs.
+
+2. Core System Features
+A. Student Learning Interface
+Topic Selection: Students can choose from preset subjects (e.g., High School Physics, Python Programming) or input custom subjects. The system uses the LLM via Exa to automatically generate 5 core topics for custom subjects.
+
+Self-Assessment: First-time users can select an initial difficulty level ranging from "Absolute Beginner" (100 points) to "Challenge Limit" (800 points).
+
+Dynamic Question Generation: Questions are dynamically generated in real-time based on the user's specific topic score, targeting their exact proficiency level.
+
+Wrong Question Notebook: The frontend provides a dashboard where students can review their weak points and read AI-generated root-cause analyses and improvement suggestions for previously missed questions.
+
+B. AI Evaluation & Feedback Loop
+Automated Grading: The LLM evaluates the student's multiple-choice answer against the generated question.
+
+Constructive Feedback: Regardless of whether the answer is correct or incorrect, the system provides a core point analysis and an actionable improvement suggestion.
+
+Phased Review (Every 5 Questions): After answering 5 questions, the system triggers a comprehensive learning path review. It categorizes the student as a "Struggling Student", "Average Student", or "Top Student" based on their score.
+
+Personalized Study Packs:
+
+Struggling Students: Receive a 1-minute video script explanation and laddered practice steps.
+
+Average Students: Receive core concept clarifications and methodology summaries.
+
+Top Students: Receive high-level extension challenges and cross-scenario application cases.
+
+Knowledge Graphs: The phase review generates Mermaid.js syntax to visually map out the student's knowledge diagnosis.
+
+3. Scoring & Adaptive Algorithms
+The system uses an Elo-inspired rating mechanism designed to balance challenge and motivation.
+
+Difficulty Tiers: * Scores < 300: Basic Introduction (Difficulty 1-2).
+
+Scores 300-699: Advanced Improvement (Difficulty 3-4).
+
+Scores 700+: Mastery Challenge (Difficulty 5).
+
+Base Scoring: Base score adjustments range from 10 to 20 points, dictated by the LLM. Correct answers get a difficulty multiplier bonus (+5 per difficulty level), while wrong answers are penalized more heavily on easier questions.
+
+Elo Resistance: * As scores increase, it becomes harder to gain points (Multiplier = 1.0 - (current_score / 2000.0)).
+
+Lower scores are protected from heavy penalties to preserve student confidence (Multiplier = 0.5 + (current_score / 2000.0)).
+
+Streak Mechanism:
+
+Correct Streaks: Achieving 3 or more consecutive correct answers grants bonus points (up to +30).
+
+Incorrect Streaks: Missing 3 or more consecutive questions applies a gentle penalty limit (up to -15) to avoid discouraging struggling students.
+
+4. Database Schema Structure
+The backend manages data across three primary domains:
+
+Users Table (users): Stores user ID, username, and the bcrypt password hash.
+
+Topic Scores Table (user_topic_scores): Tracks scores on a per-topic basis for each user. The default starting score for any new topic is 500, with a hard floor of 0 and a ceiling of 1000.
+
+Wrong Questions Table (wrong_questions): Records the user ID, topic category, raw question content, the student's incorrect answer, the correct answer, the AI's root-cause diagnosis, and improvement suggestions.
+
+5. Internal Admin Scripts
+The project includes supplementary Python scripts for database maintenance:
+
+change_score.py: A CLI tool allowing administrators to manually override and set a specific user's score for a targeted knowledge point.
+
+cleardata.py: A factory-reset script that disables foreign key checks, truncates all tables (users, scores, wrong questions), resets auto-increment IDs, and permanently deletes all data.
+
+test_db.py: A lightweight diagnostic script to verify the MySQL database connection string.
+
+test_streaks.py: A unit testing suite leveraging the unittest library and mock patches to validate the logic of the consecutive correct/incorrect scoring mechanics without hitting the live database or LLM.
