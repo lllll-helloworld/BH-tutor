@@ -1,156 +1,129 @@
-# 🤖 AI Adaptive Tutor
+🤖 AI Adaptive Tutor - Comprehensive Technical Documentation
+📌 1. Core Mechanisms & Algorithm Deep Dive
+This project is an AI-powered adaptive learning system (AI Tutor) designed to dynamically assess a student's knowledge level, generate personalized practice questions, and provide targeted feedback. To eliminate AI hallucinations and ensure high-quality educational content, the system deeply integrates Large Language Models (LLMs) with external real-world knowledge retrieval.
 
-**AI Adaptive Tutor** is an intelligent, dynamic educational platform designed to provide personalized learning experiences. Powered by Large Language Models (LLMs) and real-time search retrieval, the system dynamically generates questions, evaluates student answers, and adjusts difficulty based on individual performance using a sophisticated Elo-style scoring system.
+1.1 Dynamic Adaptive Questioning & Assessment System
+The system uses a 1000-point scale and establishes a refined dynamic capability model. First-time users can choose their initial difficulty ranging from "Absolute Beginner" (100 points) to "Challenge Limit" (800 points). The system dynamically matches question difficulty based on the real-time score for that specific topic:
 
-## ✨ Core Features
+Basic Introduction (Score < 300): The system generates basic level 1-2 questions.
 
-* **Adaptive Learning Engine**: Dynamically adjusts question difficulty (Levels 1-5) based on the user's real-time score and historical performance.
-* **LLM-Powered Generation & Evaluation**: Utilizes DeepSeek (via OpenAI API compatibility) to generate highly relevant questions and provide detailed root-cause analysis for incorrect answers.
-* **Real-time Knowledge Retrieval**: Integrates with the **Exa API** to pull up-to-date, real-world context for question generation, reducing AI hallucinations.
-* **Streak & Motivation System**: Rewards consecutive correct answers with combo multipliers and provides gentle encouragement for consecutive mistakes to protect student confidence.
-* **Phase Reviews & Knowledge Graphs**: After every 5 questions, the system generates a personalized review, including remediation paths (tailored to Struggling, Average, or Top students) and renders visual knowledge maps using **Mermaid.js**.
-* **Wrong Question Notebook**: Automatically tracks mistakes, categorizing them by topic, root cause, and improvement strategies for easy review.
+Advanced Improvement (Score 300-699): The system generates intermediate level 3-4 questions.
 
+Mastery Challenge (Score ≥ 700): The system generates high-difficulty level 5 challenge questions.
 
----
+1.2 Original "Flexible Elo" Dynamic Scoring & Streak Mechanism
+The system adopts an Elo-inspired scoring system that also considers student psychology:
 
-## 🛠️ Tech Stack
+Base Scoring: The LLM only evaluates the answer performance to provide an absolute base score change between 10 and 20 points.
 
-**Backend**
-* **Framework**: FastAPI (Python)
-* **Database**: MySQL (PyMySQL)
-* **Security**: bcrypt (Password hashing)
-* **AI/LLM integration**: `openai` SDK (configured for DeepSeek), `exa_py` (Exa Search API)
-* **Data Validation**: Pydantic
+Difficulty & Streak Bonuses: Correct answers include a difficulty multiplier bonus (+5 × difficulty_level), while wrong answers penalize lower-difficulty questions more heavily. A streak of 3 or more consecutive correct answers triggers a combo bonus (up to +30 points).
 
-**Frontend**
-* **Core**: HTML5, Vanilla JavaScript
-* **Styling**: TailwindCSS
-* **Rendering**: Marked.js (Markdown), MathJax (Mathematical formulas), Mermaid.js (Diagrams/Graphs)
+Incorrect Streak Protection: Missing 3 or more consecutive questions triggers a gentle penalty (capped at -15 points) to avoid discouraging struggling students.
 
----
+Dynamic Elo Resistance: As scores increase, it becomes harder to gain points (Multiplier = 1.0 - (current_score / 2000.0)); for lower scores, the penalty is reduced to protect confidence (Multiplier = 0.5 + (current_score / 2000.0)).
 
-## 🚀 Installation & Setup
+1.3 Phased Learning Diagnosis & Wrong Question Notebook
+5-Question Phase Review: A comprehensive review is triggered every 5 questions, categorizing the student into a Struggling, Average, or Top student learning path.
 
-### 1. Prerequisites
-* Python 3.8 or higher
-* MySQL Server (running locally or remotely)
-* DeepSeek API Key
-* Exa API Key
+Customized Study Packs: Struggling students receive a 1-minute video script explanation and laddered practice steps; Average students receive core concept clarifications and methodology summaries; Top students receive high-level extension challenges and cross-scenario application cases.
 
-### 2. Install Dependencies
-Make sure you are in the project root directory, then install the required Python packages:
-```bash
+Knowledge Graph Visualization: The phase review generates Mermaid.js syntax code to visualize the diagnostic results as an intuitive knowledge graph.
+
+Smart Wrong Question Notebook: Records student answers and correct answers, utilizing the LLM to generate deep "root-cause analysis" and actionable "improvement suggestions."
+
+🛠️ 2. Tech Stack & Database Architecture Design
+2.1 Tech Stack Overview
+Backend Core: Built with the FastAPI framework and served using Uvicorn.
+
+Database: Uses MySQL, interacting with data via the pymysql library.
+
+LLM & AI: Integrates the deepseek-chat model, utilizing Pydantic to enforce strict JSON outputs. Integrates exa_py for real-time web retrieval.
+
+Security & Frontend: Employs bcrypt for password hashing. The frontend is a Single Page HTML Application (SPA) styled with Tailwind CSS, relying on MathJax (for math formulas) and Mermaid.js (for knowledge graphs).
+
+2.2 Database Architecture (Database Schema)
+The underlying system relies on three core tables to support the adaptive logic:
+
+users Table: Stores user ID, username, and the bcrypt password hash.
+
+user_topic_scores Table: Tracks each user's specific score on independent topics. The default starting score is 500, with a hard floor of 0 and a ceiling of 1000.
+
+wrong_questions Table: Logs the user ID, topic category, original question content, student's answer, correct answer, and the LLM-generated root cause and improvement suggestions.
+
+🚀 3. Complete Backend Deployment Guide
+Step 1: Environment & Dependency Preparation
+Ensure Python 3.8+ and MySQL services are installed locally. Run the following command in the project root directory to install dependencies:
+
+Bash
 pip install fastapi uvicorn pymysql bcrypt openai exa_py pydantic
-3. Database Configuration
-Ensure your MySQL server is running.
+Step 2: Database Initialization & Configuration
+Create a database named ai_tutor_db in MySQL.
 
-Create a database named ai_tutor_db.
+Open database.py and modify the host, user, and password in DB_CONFIG to match your actual database credentials.
 
-Update your database credentials in database.py:
+Execute the SQL statements provided in readme.md to set up the tables. You can run the test_db.py script to verify if the connection is successful.
 
-Python
-DB_CONFIG = {
-    'host': '127.0.0.1',      
-    'user': 'root',           
-    'password': 'your_secure_password', 
-    'database': 'ai_tutor_db',
-    'charset': 'utf8mb4',
-    'cursorclass': pymysql.cursors.DictCursor 
-}
-Database Initialization (SQL Schema): Run the following SQL commands in your MySQL environment to set up the necessary tables for the application.
+Step 3: Environment Variables Configuration
+The system strongly relies on external APIs. Configure the following environment variables (or replace the default values in llm_service.py):
 
-SQL
-CREATE DATABASE IF NOT EXISTS ai_tutor_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE ai_tutor_db;
+DEEPSEEK_API_KEY: LLM API key.
 
--- Table for storing user credentials
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL
-);
+EXA_API_KEY: Exa search engine API key.
 
--- Table for tracking dynamic Elo scores per knowledge point
-CREATE TABLE IF NOT EXISTS user_topic_scores (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    topic VARCHAR(255) NOT NULL,
-    score INT DEFAULT 500,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_topic (user_id, topic)
-);
-
--- Table for logging incorrect answers and LLM feedback
-CREATE TABLE IF NOT EXISTS wrong_questions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    category VARCHAR(255) NOT NULL,
-    question_content TEXT NOT NULL,
-    student_answer TEXT NOT NULL,
-    correct_answer TEXT NOT NULL,
-    root_cause TEXT,
-    improvement TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-4. Environment Variables
-Set your API keys as environment variables. If not set, the system will fallback to the default keys provided in llm_service.py (Not recommended for production).
-
-DEEPSEEK_API_KEY
-
-EXA_API_KEY
-
-5. Run the Application
-Start the FastAPI server using Uvicorn:
+Step 4: Starting the Service
+Run the following command in the terminal to start the backend:
 
 Bash
 python main.py
-Or run Uvicorn directly:
-
-Bash
+# Or
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-🎮 Usage Guide
-Accessing the Portals
-Student Portal: Open http://localhost:8000/ in your browser. Students can register, select subjects/topics, assess their initial level, and start answering questions.
+💻 4. Frontend Interaction Flow & Core JavaScript Logic
+The frontend page new.html is written in vanilla JS without frameworks, achieving a smooth Single Page Application (SPA) experience through precise state management and DOM manipulation.
 
-Teacher Dashboard: Open http://localhost:8000/teacher to view the student performance overview.
+4.1 Authentication & Capability Probe Determination
+State Isolation: After a successful login, the frontend calls the /api/stats endpoint to load the user's historical topic scores, saving them in the userTopicScores dictionary.
 
-Included Utility Scripts
-The project includes several built-in scripts for database and system management:
+Smart Difficulty Hiding: The checkDifficultyRequirement() function evaluates whether the user has historical scores for the currently selected topic. If records exist, the four "assess current level" difficulty buttons are intelligently hidden; if it's the user's first time encountering the field, they are forced to select an initial level to anchor the difficulty of the first question.
 
+4.2 Topic Auto-Detection Debounce
+When a user inputs a custom subject, handleCustomSubjectInput() triggers an 800-millisecond setTimeout debounce mechanism. This prevents the system from spamming the backend LLM API while the user is typing. Only after the input pauses will it request the /api/topics endpoint to automatically generate core topics for that specific subject.
 
-change_score.py: An internal admin tool to manually override a specific user's score for a specific knowledge point. Useful for testing difficulty adjustments.
+4.3 Dynamic Rendering & Wrong Question Diagnosis Flow
+Rich Text Support: When rendering questions and the wrong question notebook, the frontend uniformly uses marked.parse() to render Markdown content and calls MathJax.typesetPromise() to safely render math and chemistry formulas.
 
-clear_data.py: A nuclear option to truncate all tables (users, user_topic_scores, wrong_questions) and restore the database to factory settings. Use with extreme caution.
+State Machine Control: During the answering phase, boolean variables isAnswering and isFetching lock the button states to prevent duplicate submissions caused by multi-clicks due to network latency.
 
-test_db.py: A simple script to verify your MySQL connection configuration.
+Dynamic Graph Mounting: When the user completes 5 consecutive questions, triggering the review, renderReviewModal() mounts the pure Mermaid code sent by the backend into the DOM and calls mermaid.run() to instantly draw the knowledge diagnosis tree.
 
-test_streaks.py: A unit testing suite mapping out the streak mechanism (tests consecutive correct/incorrect answers and their respective score multipliers). Run with python -m unittest test_streaks.py.
+🧠 5. Exa Retrieval-Augmented Generation (RAG) & LLM Prompt Core Logic
+The core intelligence of the system is centralized in llm_service.py.
 
-📂 Project Structure
-main.py: The FastAPI application entry point, routing, and HTTP endpoints.
+5.1 Exa External Knowledge Retrieval Logic (RAG)
+Generating Subject Topics: When a user inputs a custom subject, the system sends {subject} course outline core topics chapter list to Exa, automatically fetching the first 600 characters of the top two articles as a reference.
 
-llm_service.py: Contains the AdaptiveLearningSystem class, prompt engineering, Exa retrieval logic, Elo scoring math, and OpenAI API calls.
+Generating Question Background: During question generation, it sends {subject} {topic} core knowledge classic questions to fetch the first 1000 characters of the top 2 results as a "reference material library" to feed the LLM and prevent hallucinations.
 
-database.py: Handles all PyMySQL queries, schema interactions, and bcrypt authentication.
+5.2 Core Prompt Design
+Adaptive Question Prompt: Dynamically blends the capability tone (forcing a 1-5 difficulty based on score) and wrong question review (extracting historical incorrect questions on that topic for targeted correction), utilizing a Pydantic model to constrain the output fields.
 
-new.html: The interactive Single Page Application (SPA) frontend for students.
+Dynamic Scoring Prompt: Abandons hardcoding; the LLM only needs to provide a base score change of 10-20 points and output a root_cause and improvement for display in the wrong question notebook.
 
-teacher.html: The monitoring dashboard for educators. (Note: Ensure this file is created in your directory as referenced by main.py).
+Phased Review Super Prompt: Inputs recent wrong questions and the average score grading, instructing the LLM to output pure Mermaid syntax code, and dynamically populates customized study pack content based on the student's learning path.
 
-🌐 API Endpoints Overview
-Auth: POST /api/register, POST /api/login
+📈 6. Advanced: Exa RAG Performance Tuning Guide
+The current RAG strategy has achieved basic factual anchoring, but to reach commercial-grade quality in the vertical education sector, the following fine-tuning of the Exa retrieval in llm_service.py is recommended:
 
-Core Learning:
+Refactoring the Search Query (Prompt for Search):
+The current search queries are somewhat generic, such as f"{subject} {topic} core knowledge classic questions".
 
-GET /api/topics (Auto-generates topics for a custom subject using LLM)
+Tuning Suggestion: Dynamically alter the search queries based on difficulty. For instance, for high-difficulty questions, changing the query to f"{subject} {topic} common misconceptions hard exam questions" makes it easier to capture "error traps," thereby generating high-quality challenge questions.
 
-GET /api/question (Fetches an adaptive question based on user state)
+Optimizing Text Chunking Strategy:
+The current code uses a hard truncation strategy: result.text[:1000]. This easily leads to truncating crucial knowledge located in the latter half of the text.
 
-POST /api/submit (Submits answer, calculates Elo, returns LLM feedback & phase reviews)
+Tuning Suggestion: Enable the Exa API's Highlights feature, or add use_autoprompt=True to the Exa query parameters. This lets Exa internally optimize the search intent and fetch concentrated essential snippets instead of mechanically cutting off after the first 1000 characters.
 
-Analytics:
+Introducing Timeliness Control:
+Certain subjects (like library function updates in computer science) are highly time-sensitive.
 
-GET /api/stats (User's personal weakness distribution and wrong questions)
-
-GET /api/admin/dashboard (Global student overview for teachers)
+Tuning Suggestion: Add a time filter parameter to exa_client.search_and_contents (e.g., only retrieve content from the past 3 years) to prevent the LLM from generating incorrect questions based on outdated API documentation or obsolete theories.
